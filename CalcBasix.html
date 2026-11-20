@@ -1,0 +1,594 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#101319">
+<title>CalcBasix</title>
+<style>
+  :root {
+    color-scheme: dark;
+    font-family: Inter, "Segoe UI", sans-serif;
+    --ink: #f3f6fb;
+    --muted: #a7b4c4;
+    --mint: #a5f4cd;
+    --line: #313a46;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    color: var(--ink);
+    background:
+      radial-gradient(ellipse at 76% 48%, #1c3536 0%, transparent 55%),
+      #101319;
+  }
+  .screen-label, kbd { font-family: "IBM Plex Mono", Consolas, monospace; }
+  main {
+    width: min(970px, calc(100% - 48px));
+    margin: auto;
+    padding: clamp(48px, 9vh, 100px) 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 445px);
+    grid-template-areas: "intro calc" "help calc";
+    grid-template-rows: 1fr 1fr;
+    gap: 30px clamp(30px, 6vw, 90px);
+  }
+  .intro { grid-area: intro; align-self: end; }
+  .intro::before {
+    content: "";
+    display: block;
+    width: 34px;
+    height: 3px;
+    border-radius: 4px;
+    background: var(--mint);
+    margin-bottom: 20px;
+  }
+  h1 {
+    margin: 0;
+    font-size: clamp(3rem, 7.5vw, 6rem);
+    line-height: .98;
+    letter-spacing: -.075em;
+  }
+  h1 span { color: var(--mint); }
+  .intro p {
+    max-width: 32ch;
+    margin: 19px 0 0;
+    color: var(--muted);
+    font-size: 1.05rem;
+    line-height: 1.6;
+  }
+  .help { grid-area: help; align-self: start; max-width: 355px; }
+  .help h2 { margin: 0 0 10px; font-size: .95rem; }
+  dl { margin: 0; }
+  dl div {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 9px;
+    padding: 9px 0;
+    border-top: 1px solid var(--line);
+    color: var(--muted);
+    font-size: .87rem;
+  }
+  dd { margin: 0; text-align: right; }
+  kbd {
+    display: inline-block;
+    padding: 3px 5px;
+    color: var(--ink);
+    border: 1px solid #475563;
+    border-radius: 5px;
+    background: #212831;
+    font-size: .73rem;
+    white-space: nowrap;
+  }
+  .calc {
+    grid-area: calc;
+    align-self: center;
+    padding: 20px;
+    min-width: 0;
+    border: 1px solid #435354;
+    border-radius: 27px;
+    background: #1a2129;
+    box-shadow: 0 28px 64px #070c12a0, inset 0 1px #ffffff0d;
+  }
+  .screen {
+    min-width: 0;
+    margin-bottom: 16px;
+    padding: 15px 17px 12px;
+    border: 1px solid #35484a;
+    border-radius: 15px;
+    background: #11191e;
+    text-align: right;
+  }
+  .screen-label {
+    display: block;
+    color: var(--mint);
+    font-size: .69rem;
+    letter-spacing: .15em;
+    text-align: left;
+    text-transform: uppercase;
+  }
+  .expression, .value {
+    overflow-x: auto;
+    scrollbar-width: none;
+    white-space: nowrap;
+    font-family: "IBM Plex Mono", Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+  .expression span, .value span { display: block; width: max-content; min-width: 100%; }
+  .expression { color: var(--muted); margin-top: 8px; min-height: 1.2em; }
+  .value { font-size: clamp(2.25rem, 7vw, 3.2rem); letter-spacing: -.06em; line-height: 1.17; }
+  .value[data-compact] { font-size: clamp(1rem, 4.6vw, 1.55rem); letter-spacing: -.04em; line-height: 2.1; }
+  .message { min-height: 1.25em; margin: 3px 0 0; color: #ffb8ad; font-size: .79rem; }
+  .keys { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; }
+  button {
+    min-height: 53px;
+    padding: 0;
+    border: 1px solid #394552;
+    border-radius: 12px;
+    background: #262f39;
+    color: var(--ink);
+    font: 650 1.25rem / 1 Inter, "Segoe UI", sans-serif;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: background .15s, transform .15s;
+  }
+  button:hover { background: #344251; }
+  button:active { transform: translateY(1px); }
+  button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+  .wide { grid-column: span 2; }
+  .utility { color: #d6e1ee; background: #303a46; font-size: .95rem; }
+  .operator { color: var(--mint); background: #213631; border-color: #39534b; }
+  .operator:hover { background: #2e4b41; }
+  .equals { color: #10251a; background: var(--mint); border-color: #c0fadc; }
+  .equals:hover { background: #c5ffdf; }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  @media (max-width: 840px) {
+    .screen-label, kbd { font-family: "IBM Plex Mono", Consolas, monospace; }
+  main {
+      width: min(445px, calc(100% - 32px));
+      padding: 32px 0 42px;
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-areas: "intro" "calc" "help";
+      grid-template-rows: auto;
+      gap: 23px;
+    }
+    .intro::before { margin-bottom: 14px; }
+    h1 { font-size: clamp(3rem, 12vw, 4.5rem); }
+    .intro p { margin-top: 12px; font-size: .95rem; }
+    .help { max-width: none; }
+  }
+  @media (max-width: 360px) {
+    .calc { padding: 13px; }
+    button { min-height: 51px; }
+  }
+  @media (prefers-reduced-motion: reduce) { button { transition: none; } }
+  .science-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .angle { display: flex; gap: 3px; padding: 3px; border: 1px solid var(--line); border-radius: 9px; }
+  .science-bar button { min-height: 30px; padding: 0 10px; font: 650 .75rem Inter, "Segoe UI", sans-serif; border-radius: 6px; }
+  .angle button { background: transparent; border-color: transparent; color: var(--muted); }
+  .angle button[aria-pressed="true"] { background: #29453d; color: var(--mint); }
+  .angle button:hover { color: var(--ink); }
+  .science { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin-bottom: 13px; }
+  .science button { min-height: 40px; font-size: .91rem; color: var(--mint); background: #202d33; }
+  .science button:hover { background: #30463f; }
+  .hint { color: var(--muted); font-size: .82rem; line-height: 1.55; margin: 12px 0 0; }
+  .splash {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    display: grid;
+    place-items: center;
+    isolation: isolate;
+    pointer-events: none;
+    overflow: hidden;
+    background: #101319;
+    animation: splash-exit 3s both;
+  }
+  .splash::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    width: min(95vw, 650px);
+    aspect-ratio: 1;
+    background: radial-gradient(circle, #a5f4cd3d, #4bbdbd15 35%, transparent 68%);
+    animation: splash-glow 2.65s ease-in-out both;
+  }
+  .splash-name {
+    font-size: clamp(3rem, 13vw, 8rem);
+    font-weight: 750;
+    line-height: 1;
+    letter-spacing: -.075em;
+    color: var(--ink);
+    text-shadow: 0 0 32px #a5f4cd55;
+    animation: splash-name 2.65s ease both;
+  }
+  .splash-name span { color: var(--mint); }
+  @keyframes splash-name {
+    0% { opacity: 0; transform: translateY(12px) scale(.96); filter: blur(6px); }
+    28%, 85% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+    100% { opacity: 0; transform: translateY(-6px) scale(1.03); filter: blur(3px); }
+  }
+  @keyframes splash-glow {
+    0% { opacity: .15; transform: scale(.7); }
+    55% { opacity: 1; transform: scale(1.12); }
+    100% { opacity: .25; transform: scale(1.22); }
+  }
+  @keyframes splash-exit {
+    0%, 76% { opacity: 1; }
+    99.9% { visibility: visible; }
+    100% { opacity: 0; visibility: hidden; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .splash { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="splash" aria-hidden="true">
+  <div class="splash-name">Calc<span>Basix</span></div>
+</div>
+<main>
+  <section class="intro" aria-labelledby="title">
+    <h1 id="title">Calc<span>Basix</span></h1>
+    <p>Calculate powers, roots, logarithms, and more. Use the keypad or type an expression, then press Enter.</p>
+  </section>
+  <section class="calc" aria-label="Calculator">
+    <div class="screen" aria-hidden="true">
+      <span class="screen-label">Display</span>
+      <div class="expression"><span></span></div>
+      <div class="value"><span>0</span></div>
+      <p class="message"></p>
+    </div>
+    <p class="sr-only" role="status" aria-atomic="true">Result 0</p>
+    <div class="science-bar">
+      <div class="angle" role="group" aria-label="Angle unit">
+        <button type="button" data-mode="deg" aria-label="Degrees" aria-pressed="true">DEG</button>
+        <button type="button" data-mode="rad" aria-label="Radians" aria-pressed="false">RAD</button>
+      </div>
+      <button type="button" data-key="Ans" aria-label="Previous answer">Ans</button>
+    </div>
+    <div class="keys science" role="group" aria-label="Scientific keypad">
+      <button type="button" data-key="sin(" aria-label="Sine">sin</button>
+      <button type="button" data-key="cos(" aria-label="Cosine">cos</button>
+      <button type="button" data-key="tan(" aria-label="Tangent">tan</button>
+      <button type="button" data-key="^" aria-label="Raise to a power">xʸ</button>
+      <button type="button" data-key="sqrt(" aria-label="Square root">√</button>
+      <button type="button" data-key="log(" aria-label="Base ten logarithm">log</button>
+      <button type="button" data-key="ln(" aria-label="Natural logarithm">ln</button>
+      <button type="button" data-key="²" aria-label="Square">x²</button>
+      <button type="button" data-key="abs(" aria-label="Absolute value">|x|</button>
+      <button type="button" data-key="!" aria-label="Factorial">x!</button>
+      <button type="button" data-key="(" aria-label="Open parenthesis">(</button>
+      <button type="button" data-key=")" aria-label="Close parenthesis">)</button>
+      <button type="button" data-key="π" aria-label="Pi">π</button>
+      <button type="button" data-key="e" aria-label="Euler's number">e</button>
+      <button type="button" data-key="%" aria-label="Convert percent to decimal">%</button>
+    </div>
+    <div class="keys" aria-label="Calculator keypad" role="group">
+      <button type="button" class="utility wide" data-key="clear" aria-label="Clear all">AC</button>
+      <button type="button" class="utility" data-key="delete" aria-label="Delete last character">DEL</button>
+      <button type="button" class="operator" data-key="/" aria-label="Divide">÷</button>
+      <button type="button" data-key="7">7</button>
+      <button type="button" data-key="8">8</button>
+      <button type="button" data-key="9">9</button>
+      <button type="button" class="operator" data-key="*" aria-label="Multiply">×</button>
+      <button type="button" data-key="4">4</button>
+      <button type="button" data-key="5">5</button>
+      <button type="button" data-key="6">6</button>
+      <button type="button" class="operator" data-key="-" aria-label="Subtract or enter a negative number">−</button>
+      <button type="button" data-key="1">1</button>
+      <button type="button" data-key="2">2</button>
+      <button type="button" data-key="3">3</button>
+      <button type="button" class="operator" data-key="+" aria-label="Add">+</button>
+      <button type="button" class="wide" data-key="0">0</button>
+      <button type="button" data-key="." aria-label="Decimal point">.</button>
+      <button type="button" class="equals" data-key="=" aria-label="Equals">=</button>
+    </div>
+  </section>
+  <section class="help" aria-labelledby="shortcuts">
+    <h2 id="shortcuts">Keyboard shortcuts</h2>
+    <dl>
+      <div><dt>Enter numbers</dt><dd><kbd>0–9</kbd> <kbd>.</kbd></dd></div>
+      <div><dt>Operators</dt><dd><kbd>+</kbd> <kbd>-</kbd> <kbd>*</kbd> <kbd>/</kbd> <kbd>^</kbd></dd></div>
+      <div><dt>Grouping and postfix</dt><dd><kbd>( )</kbd> <kbd>%</kbd> <kbd>!</kbd></dd>
+      <div><dt>Calculate</dt><dd><kbd>Enter</kbd> <kbd>=</kbd></dd></div>
+      <div><dt>Delete last character</dt><dd><kbd>Backspace</kbd></dd></div>
+      <div><dt>Clear all</dt><dd><kbd>Esc</kbd></dd></div>
+    </dl>
+    <p class="hint">Trig uses degrees by default. Switch to RAD for radians. Ans recalls the last result, and % divides by 100.</p>
+  </section>
+</main>
+<script>
+  "use strict";
+
+  const expressionField = document.querySelector(".expression");
+  const valueField = document.querySelector(".value");
+  const messageField = document.querySelector(".message");
+  const announcement = document.querySelector('[role="status"]');
+  const calculator = document.querySelector(".calc");
+  const digits = /^(?:\d+(?:\.\d*)?|\.\d+)(?:E[+-]?\d+)?$/;
+  const binary = /^[+*/^-]$/;
+  const postfixOperator = /^[!%²]$/;
+
+  let expression = "";
+  let angleMode = "deg";
+  let answer = 0;
+  let expressionAnswer = 0;
+  let preview = 0;
+  let finished = false;
+  let notice = "";
+
+  function factorial(value) {
+    if (!Number.isInteger(value) || value < 0 || value > 170) {
+      throw new Error("Factorial takes a whole number from 0 to 170.");
+    }
+    let result = 1;
+    for (let n = 2; n <= value; n++) result *= n;
+    return result;
+  }
+
+  function trig(name, value) {
+    const quarterTurn = angleMode === "deg" ? 90 : Math.PI / 2;
+    const reduced = value % (4 * quarterTurn);
+    const quadrant = reduced / quarterTurn;
+    if (Number.isInteger(quadrant)) {
+      const index = (quadrant + 4) % 4;
+      if (name === "sin") return [0, 1, 0, -1][index];
+      if (name === "cos") return [1, 0, -1, 0][index];
+      if (index % 2) throw new Error("Tangent is undefined at this angle.");
+      return 0;
+    }
+    const radians = angleMode === "deg" ? reduced * (Math.PI / 180) : reduced;
+    return Math[name](radians);
+  }
+
+  const scientific = {
+    sin: value => trig("sin", value),
+    cos: value => trig("cos", value),
+    tan: value => trig("tan", value),
+    sqrt(value) {
+      if (value < 0) throw new Error("Square root requires a nonnegative number.");
+      return Math.sqrt(value);
+    },
+    log: value => logarithm(value, Math.log10),
+    ln: value => logarithm(value, Math.log),
+    abs: Math.abs
+  };
+
+  function logarithm(value, operation) {
+    if (value <= 0) throw new Error("Logarithms require a positive number.");
+    return operation(value);
+  }
+
+  function finite(value) {
+    if (Number.isNaN(value)) throw new Error("This operation has no real result.");
+    if (!Number.isFinite(value)) throw new Error("Result is out of range.");
+    return value;
+  }
+
+  function calculate(source) {
+    const tokens = source.match(/(?:\d+(?:\.\d*)?|\.\d+)(?:E[+-]?\d+)?|Ans|sqrt|sin|cos|tan|log|ln|abs|[πe()+*/^%!²-]/g) ?? [];
+    if (tokens.join("") !== source) throw new Error("Check the expression.");
+    let index = 0;
+    const peek = () => tokens[index];
+    function take(symbol) {
+      if (peek() !== symbol) return false;
+      index++;
+      return true;
+    }
+
+    function group() {
+      const value = sum();
+      if (!take(")")) throw new Error("Check the parentheses.");
+      return value;
+    }
+
+    function primary() {
+      const token = tokens[index++];
+      if (token === "(") return group();
+      if (token === "π") return Math.PI;
+      if (token === "e") return Math.E;
+      if (token === "Ans") return expressionAnswer;
+      if (digits.test(token ?? "")) return finite(Number(token));
+      if (token && Object.hasOwn(scientific, token) && take("(")) {
+        return finite(scientific[token](group()));
+      }
+      throw new Error("Enter a number or function.");
+    }
+
+    function power() {
+      let value = primary();
+      while (postfixOperator.test(peek() ?? "")) {
+        const operator = tokens[index++];
+        if (operator === "!") value = factorial(value);
+        else if (operator === "%") value /= 100;
+        else value = finite(value ** 2);
+      }
+      return take("^") ? finite(value ** unary()) : value;
+    }
+
+    function unary() {
+      if (take("-")) return -unary();
+      if (take("+")) return unary();
+      return power();
+    }
+
+    function product() {
+      let value = unary();
+      while (true) {
+        const next = peek();
+        if (take("/")) {
+          const divisor = unary();
+          if (divisor === 0) throw new Error("Cannot divide by zero.");
+          value = finite(value / divisor);
+        } else if (take("*") || /^(?:\(|π|e|Ans|sqrt|sin|cos|tan|log|ln|abs)$/.test(next ?? "") ||
+                   (digits.test(next ?? "") && tokens[index - 1] === ")")) {
+          value = finite(value * unary());
+        } else {
+          return value;
+        }
+      }
+    }
+
+    function sum() {
+      let value = product();
+      while (peek() === "+" || peek() === "-") {
+        const operator = tokens[index++];
+        const operand = product();
+        value = finite(Number((operator === "+" ? value + operand : value - operand).toPrecision(15)));
+      }
+      return value;
+    }
+
+    const value = sum();
+    if (index !== tokens.length) throw new Error("Check the expression near " + peek() + ".");
+    return value;
+  }
+
+  function closeParentheses(source) {
+    let balance = 0;
+    for (const character of source) {
+      if (character === "(") balance++;
+      if (character === ")" && --balance < 0) throw new Error("Check the parentheses.");
+    }
+    return source + ")".repeat(balance);
+  }
+
+  function readExpression() {
+    if (!expression) return { value: 0 };
+    try {
+      const source = closeParentheses(expression);
+      if (/[+*/^(-]$/.test(expression)) return { incomplete: true };
+      return { source, value: calculate(source) };
+    } catch (error) {
+      return { error: error.message };
+    }
+  }
+
+  function displayExpression(source) {
+    return source.replaceAll("sqrt", "√").replaceAll("*", "×")
+      .replaceAll("/", "÷").replaceAll("-", "−");
+  }
+
+  function draw() {
+    const result = finished ? { value: answer } : readExpression();
+    if (result.value !== undefined) preview = result.value;
+    const shown = result.error ? "Error" : String(Number(preview.toPrecision(15))).replaceAll("-", "−");
+    const shownExpression = displayExpression(expression) + (finished ? " =" : "");
+    const error = result.error ?? notice;
+
+    expressionField.firstElementChild.textContent = shownExpression;
+    valueField.firstElementChild.textContent = shown;
+    valueField.toggleAttribute("data-compact", shown.length > 10);
+    expressionField.scrollLeft = expressionField.scrollWidth;
+    valueField.scrollLeft = valueField.scrollWidth;
+    messageField.textContent = error;
+    announcement.textContent = [
+      shownExpression && "Expression " + shownExpression + ".",
+      !result.error && "Result " + shown + ".",
+      error
+    ].filter(Boolean).join(" ");
+  }
+
+  function reset(source = "") {
+    expression = source;
+    expressionAnswer = answer;
+    preview = 0;
+    finished = false;
+  }
+
+  function enter(key) {
+    if (finished) {
+      const continues = binary.test(key) || postfixOperator.test(key);
+      const previous = String(answer).replace("e", "E");
+      reset(continues ? (answer < 0 ? "(" + previous + ")" : previous) : "");
+    }
+
+    if (expression.length + key.length > 220) {
+      notice = "Expression is too long.";
+      return;
+    }
+
+    const number = expression.match(/(?:^|[+*/^(-])(\d*\.?\d*)$/)?.[1];
+    if (key === ".") {
+      if (number?.includes(".")) return;
+      if (!number) key = "0.";
+    }
+    if (/^\d$/.test(key) && number?.replace(".", "").length >= 15) {
+      notice = "Enter up to 15 digits per number.";
+      return;
+    }
+    if (/^\d$/.test(key) && number === "0") expression = expression.slice(0, -1);
+    if (binary.test(key) && key !== "-" && /[+*/^-]$/.test(expression)) {
+      const last = expression.slice(-1);
+      const beforeLast = expression.slice(-2, -1);
+      if (binary.test(beforeLast)) expression = expression.slice(0, -1);
+      if (last !== "-" || expression.length > 1) expression = expression.slice(0, -1);
+    }
+    expression += key;
+  }
+
+  function handle(key) {
+    notice = "";
+    if (key === "clear") {
+      reset();
+    } else if (key === "delete") {
+      finished = false;
+      expression = expression.replace(/(?:sqrt|sin|cos|tan|log|ln|abs)\($|Ans$|.$/u, "");
+    } else if (key === "=") {
+      if (expression && !finished) {
+        const result = readExpression();
+        if (result.incomplete) notice = "Finish the expression.";
+        if (result.source) {
+          expression = result.source;
+          answer = result.value;
+          finished = true;
+        }
+      }
+    } else {
+      enter(key);
+    }
+    draw();
+  }
+
+  calculator.addEventListener("click", event => {
+    const button = event.target.closest("button");
+    if (!button) return;
+    if (button.dataset.mode) {
+      angleMode = button.dataset.mode;
+      calculator.querySelectorAll("[data-mode]").forEach(item => {
+        item.setAttribute("aria-pressed", String(item.dataset.mode === angleMode));
+      });
+      draw();
+    } else {
+      handle(button.dataset.key);
+    }
+  });
+
+  const shortcuts = { Enter: "=", Escape: "clear", Backspace: "delete", Delete: "delete", p: "π", a: "Ans" };
+  document.addEventListener("keydown", event => {
+    if (event.ctrlKey || event.metaKey || event.altKey || event.isComposing) return;
+    const key = Object.hasOwn(shortcuts, event.key) ? shortcuts[event.key] : event.key;
+    if (!/^[\d.+*/=^()%!eπ²-]$/.test(key) && !["clear", "delete", "Ans"].includes(key)) return;
+    event.preventDefault();
+    handle(key);
+  });
+</script>
+</body>
+</html>
