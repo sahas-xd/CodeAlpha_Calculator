@@ -39,3 +39,8 @@ HTML, CSS, and vanilla JavaScript are bundled in `index.html`. No installation o
 | Select **DEG**, click **sin**, then enter `90)` | `1` |
 | Click **√**, then enter `81)` | `9` |
 | Type `200*15%` | `30` |
+
+
+## Project
+
+Created as a Calculator project for CodeAlpha Task 2.
